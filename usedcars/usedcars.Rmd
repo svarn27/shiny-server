@@ -1,0 +1,227 @@
+---
+title: "German Used Car Dataset"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    smooth_scroll: true
+    theme: united
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rmarkdown)
+library(dplyr)
+library(highcharter)
+library(wordcloud)
+library(ggplot2)
+library(shiny)
+library(xtable)
+library(knitr)
+# library(ggalt)
+
+baseDir <- ifelse(as.character(.Platform$OS.type) == "windows",
+                  "J:\\Misc\\Shane\\mqa\\",
+                  "/srv/shiny-server/utilities/")
+
+source(paste0(baseDir,"query_function.R"))
+
+options(scipen = 0)
+
+ data_df <- qry('select * from usedcars')  %>% 
+    filter(yearOfRegistration < 2019,
+    yearOfRegistration > 1950,
+    kilometer <  400000,
+    price < 1000000, powerPS < 1000) %>%
+  filter(price > 0) %>%
+  mutate(price = price/1000) %>%
+  mutate(r_model = ifelse(grepl('_R|_r',name),"R","NonR")) %>%
+  mutate(s_model = ifelse(grepl('_S|_r',name),"S","NonS")) %>%
+  mutate(turbo = ifelse(grepl('turbo|Turbo',name),"turbo","non_turbo")) %>%
+  mutate(gt = ifelse(grepl('gt|GT|Gt',name),"gt","base")) %>%
+  mutate(kilo_bucket = cut(kilometer/1000,
+                           breaks=c(seq(0,200,25),Inf))) %>%
+  mutate(pwr_bucket = cut(powerPS,
+                           breaks=c(seq(0,500,50),Inf))) %>%
+  mutate(decade = cut(yearOfRegistration, dig.lab=4,
+                          breaks=c(-Inf,seq(1950,2010,10),Inf)))
+ 
+wc1 <- data_df %>% group_by(brand) %>% summarise(count= n()) %>% as.data.frame()
+wc2 <- data_df %>% group_by(model) %>% summarise(count= n()) %>% as.data.frame()
+
+create_wc <- function(d, word_col, freq_col){
+
+wordcloud(words = d[,word_col], freq = d[,freq_col], min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35,
+          colors=brewer.pal(8, "Dark2"))
+}
+
+
+```
+
+### Intro {.sidebar}
+
+This Data Analysis covers several topics:
+
+* Dataset Description
+* Descriptive Analytics
+* Predictive Analytics
+
+### Dataset Description
+```{r, echo=FALSE}
+img(src='http://www.uniqueautoparts.com.au/images/dynamicslideshow/slides/unique/banner_3.jpg')
+
+h1("The Dataset")
+
+HTML("The following dataset was sourced from kaggle.com. The original provider of scraped used car information from the German EBay motors website. You'll notice many of the variables are in German however are relatively interpretable.")
+
+br()
+
+HTML("The following variables were included:")
+
+br()
+
+renderText(paste(names(data_df),sep=','))
+
+br()
+
+HTML("However, for the purpose of this analysis, only the name, price, yearOfRegistration, gearbox, powerPS, model, kilometer, brand, and notRepairedDamage variables were used. Below is the beginning of the data set with including only the noted columns:")
+
+br()
+
+kable(head(data_df[,names(data_df) %in% c('name', 'price', 'yearOfRegistration', 'gearbox', 'powerPS', 'model', 'kilometer', 'brand', 'notRepairedDamage')]))
+
+h1("Data Exploration")
+br()
+HTML("I wanted to start by looking at what brands and models comprised the majority of the cars for sale. Word cloud charts are an interesting and visually intuitive way of displaying the relative frequency of words among words.")
+br()
+
+h2("Word Cloud Graphs")
+
+fluidRow(
+  column(width=6,p("Brand Word Cloud",align='center')),
+  column(width=6,p("Model Word Cloud",align='center'))
+  )
+
+fluidRow(
+  column(width=6,renderPlot(create_wc(wc1, 'brand', 'count'))),
+  column(width=6,renderPlot(create_wc(wc2, 'model', 'count')))
+  )
+
+HTML("No surprise, VW stands out as the most prominent auto maker in the dataset. The VW Golf stands as the model name with the most occurences in the data set.")
+
+br()
+h2("Brand Prevalence Over Time")
+z <- data_df %>% group_by(yearOfRegistration, brand) %>% summarise(count=n()) %>%
+  group_by(yearOfRegistration) %>% mutate(annualTotal = sum(count)) %>%
+  mutate(brandProp = count/annualTotal)
+
+dtt <- z %>% group_by(brand) %>% summarise(avgProportion = mean(brandProp)) %>%
+  arrange(desc(avgProportion)) %>% as.data.frame()
+
+#renderDataTable(dtt)
+renderPlot({
+z %>%
+  ggplot(aes(x=yearOfRegistration,y=brandProp, group=brand, colour=brand)) +
+    geom_line(size=1.25)
+})
+
+# sliderInput()
+# renderPlot({
+# z %>% group_by(brand) %>% summarise(min = min(brandProp) * 100,
+#                                     max = max(brandProp) * 100,
+#                                     range = max - min) %>%
+# ggplot(aes(x=min, xend=max, y=brand, group=brand))+
+#   geom_dumbbell(colour="#a3c4dc",
+#                       size_x = 2, size_xend = 2,
+#                       colour_xend="#0e668b") +
+#   scale_x_continuous() +
+#         labs(x=NULL,
+#              y=NULL,
+#              title="Dumbbell Chart") +
+#         theme_bw()
+# })
+
+z %>% hchart(type='spline',
+             hcaes(x=yearOfRegistration, y=brandProp,
+                                 group=brand)) %>%
+        hc_yAxis(max=1, title=list(text=''))
+
+h2("Brand/Model Prevalence By Select Year")
+fluidRow(
+column(2, selectInput('prop_year', 'Select Year:', sort(unique(z$yearOfRegistration), decreasing = T))),
+column(2,selectInput('prop_brand', 'Select Year:', c("All", unique(z$brand))))
+)
+
+renderHighchart({
+
+  prop_year <- input$prop_year
+  prop_brand <- input$prop_brand
+
+  if(prop_brand != 'All'){
+
+  z <- data_df %>%
+    filter(brand == prop_brand, yearOfRegistration == prop_year) %>%
+    group_by(model) %>% summarise(count=n()) %>%
+    mutate(annualTotal = sum(count)) %>%
+    mutate(brandProp = count/annualTotal) %>% rename(brand=model)
+
+  } else {
+    z <-  z%>% filter(yearOfRegistration == prop_year)
+  }
+
+  hc <- z %>%
+    hchart(type='pie', hcaes(y=brandProp, x=brand))
+
+
+
+})
+
+```
+
+# Price Predictability
+
+## Porsche
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+data_df %>%
+  filter(brand == 'porsche', model=='911') %>%
+  filter(powerPS > 50, powerPS < 1000, yearOfRegistration < 2016,
+             yearOfRegistration > 1975, price < 800) %>%
+  ggplot(aes(x=yearOfRegistration, y=price)) + #, fill=turbo)) +
+  geom_point(shape=1) +
+  geom_smooth(method='lm',
+              formula=y ~ poly(x, 3, raw=TRUE)) #+
+  #facet_wrap(~turbo)
+```
+
+## VW
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+data_df %>%
+  filter(brand == 'volkswagen', model=='golf') %>%
+  filter(powerPS > 50, powerPS < 1000, yearOfRegistration < 2016,
+             yearOfRegistration > 1975, price < 800) %>%
+  ggplot(aes(x=yearOfRegistration, y=price, fill=kilo_bucket)) +
+  geom_point(shape=1) +
+  geom_smooth(method='loess') +
+  facet_wrap(~r_model)
+
+golf_r_trans <- data_df %>%
+  filter(brand == 'volkswagen', model=='golf') %>%
+  filter(powerPS > 50, powerPS < 1000, yearOfRegistration < 2016,
+             yearOfRegistration > 1975, price < 100, r_model == 'R',
+             gearbox != '') %>% mutate(trans = ifelse(gearbox=='automatik',1,2))
+
+golf_r_trans %>%
+  ggplot(aes(x=yearOfRegistration, y=price, fill=gearbox)) +
+  geom_point(shape=1) +
+  geom_smooth(method='lm',
+              formula=y ~ poly(x, 2, raw=TRUE)) +
+  theme_bw() #+ facet_wrap(~gearbox)
+
+model <- lm(formula=price~poly(yearOfRegistration,2,raw=TRUE)+trans+kilometer, data=golf_r_trans)
+
+  summary(model)
+```
+

@@ -1,0 +1,111 @@
+# Rely on the 'WorldPhones' dataset in the datasets
+# package (which generally comes preloaded).
+library(datasets)
+library(shiny)
+library(highcharter)
+library(reshape2)
+library(ggplot2)
+
+##reformatted data
+graph_df <- as.data.frame(melt(WorldPhones))
+names(graph_df) <- c("Year", "Region", "Phones")
+
+# Use a fluid Bootstrap layout
+ui <- fluidPage(    
+  
+  h1("Graphing Example"),
+  # Give the page a title
+  titlePanel("Telephones by region"),
+  
+  # Generate a row with a sidebar
+  sidebarLayout(      
+    
+    # Define the sidebar with one input
+    sidebarPanel(
+      selectInput("region", "Region:", 
+                  choices=c(colnames(WorldPhones),"All")),
+      selectInput("graph_pkg", "Choose Graphing Package:", 
+                  choices=c("Base","ggplot2","HighCharts")),
+      hr(),
+      helpText("Data from AT&T (1961) The World's Telephones.")
+    ),
+    
+    # Create a spot for the barplot
+    mainPanel(
+      conditionalPanel(condition = "input.graph_pkg == 'Base'", plotOutput("phonePlot")),
+      conditionalPanel(condition = "input.graph_pkg == 'ggplot2'", plotOutput("ggPlot")),
+      conditionalPanel(condition = "input.graph_pkg == 'HighCharts'", highchartOutput("highPlot")),
+      dataTableOutput("dataOutput")
+    )
+    
+  )
+)
+
+
+# Define a server for the Shiny app
+server <- function(input, output) {
+      
+      output$dataOutput <- renderDataTable(
+        graph_df, options = list(pageLength = 5)
+      )
+      
+      ##Base R Plotting
+      output$phonePlot <- renderPlot({
+        
+        if(input$region != "All"){
+        barplot(WorldPhones[,input$region]*1000, 
+                main=input$region,
+                ylab="Number of Telephones",
+                xlab="Year")
+        } else {
+          
+          par(mar=c(5.1, 4.1, 4.1, 7.1), xpd=TRUE)
+          barplot(t(WorldPhones), col=heat.colors(length(rownames(t(WorldPhones)))), width=2)
+          legend("topleft",inset=c(0,-0.2), fill=heat.colors(length(rownames(t(WorldPhones)))),
+                 legend=rownames(t(WorldPhones)))
+        }
+      })
+      
+      #ggplot2 R Plotting
+      output$ggPlot <- renderPlot({
+        graph_df <- as.data.frame(melt(WorldPhones))
+        names(graph_df) <- c("Year", "Region", "Phones")
+        graph_df$Region <- as.character(graph_df$Region)
+        
+        if(input$region != "All"){
+        graph_df <- graph_df[graph_df$Region == input$region, ]
+        }
+        
+        gg <- ggplot(graph_df, aes(Year, Phones, fill = Region)) +
+          geom_col()
+
+        gg
+        })
+      
+      #HighCharts R Plotting
+      output$highPlot <- renderHighchart({
+        
+        graph_df <- as.data.frame(melt(WorldPhones))
+        names(graph_df) <- c("Year", "Region", "Phones")
+        graph_df$Region <- as.character(graph_df$Region)
+        
+        if(input$region != "All"){
+        graph_df <- graph_df[graph_df$Region == input$region, ]
+        }
+        
+        hc <- hchart(object=graph_df,type="column",hcaes(x="Year",y="Phones"))
+        
+        if(input$region == "All"){
+          hc <- hchart(object=graph_df,type="column",
+                       hcaes(x="Year",y="Phones",group="Region"),
+                       stacking='normal')
+        }
+        
+        return(hc)
+        
+      })
+      
+  
+}
+
+shinyApp(ui,server,options=list(display.mode = "showcase"))
