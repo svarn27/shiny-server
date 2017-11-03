@@ -1,0 +1,52 @@
+---
+output: pdf_document
+geometry: margin=.5in
+---
+# Invoice #: `r paste0(32425242)`   
+```{r, echo=FALSE, out.width = "275px", fig.align="center"}
+knitr::include_graphics("/srv/shiny-server/tfd/tfd.jpg")
+```
+\begin{center}
+| 2855 Industrial Plaza Drive | Tallahassee, FL 32301 | (850) 545 7112 |  
+\end{center}
+
+
+
+| **Invoice:**    | |**Customer Details:** |
+|----------------|-|-----------------|
+|Date: `r format(Sys.Date(), "%m/%d/%Y") `| | Name: `r input$customer_name` |
+|Invoice #: 32425242  |  | Address: `r input$customer_add` |
+|Sales Rep: `r input$sales_rep `|  | Phone: `r input$customer_phone1` |
+| |  | Email: `r input$customer_email` |
+
+\center __Order Summary__ \center
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+
+baseDir <- "/srv/shiny-server/utilities/"
+source(paste0(baseDir,"query_function.R"))
+library(knitr)
+
+tax_rt <- 7.5
+
+    orders_table <- qry("select * from orders")
+    orders_table$Time <- NULL
+    orders_table$Sales_Rep <- NULL
+    orders_table$Order_Name <- NULL
+    invoice_tab <- orders_table
+    invoice_tab$Retail <- NULL
+    invoice_tab$Discount <- NULL
+    invoice_tab$Remove <- NULL
+    
+    kable(invoice_tab)
+  
+    
+```
+
+```{r, echo=FALSE}
+    order_total <- sum(orders_table$Total)
+    tax <- (order_total * tax_rt/100)
+```
+-----------|------------
+Sub-Total: | `r order_total `  
+Tax (`r tax_rt`%):  | `r tax `  
+Total: | `r (order_total + tax) `

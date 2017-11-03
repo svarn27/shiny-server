@@ -28,7 +28,7 @@ ui <- fluidPage(
                   choices=c("Base","ggplot2","HighCharts")),
       hr(),
       helpText("Data from AT&T (1961) The World's Telephones."),
-      a("Code", href="/code/example2.txt")
+      a("Code", href="/example2.txt")
     ),
     
     # Create a spot for the barplot

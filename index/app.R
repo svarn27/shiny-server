@@ -1,10 +1,13 @@
 library(shiny)
 
 ui <- fluidPage(
-  h2("Shiny Applications"),
-  a("Dashboard", href="/dashboard"),br(),
-  a("Returns", href="/performance"),br(),
-  a("Risk", href="/risk")
+  h2("Investment Applications"),
+  a("Daily Performance Dashboard", href="/dashboard"),br(),
+  a("Performance Analytics", href="/performance"),br(),
+  a("Risk Decomposition", href="/risk"),
+  br(),
+  h2("Enterprise Management Systems"),
+  a("Sales Management", href="/tfd")
 )
 
 server <- function(input,output, session){

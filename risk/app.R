@@ -2,9 +2,10 @@ rm(list=ls())
 
 library(shiny)
 library(highcharter)
-library(dplyr)
 library(purrr)
 library(lubridate)
+library(dplyr)
+library(reshape2)
 
 ###RISK REPORT####
 baseDir <- ifelse(as.character(.Platform$OS.type) == "windows",
@@ -25,6 +26,15 @@ managers <- qry(" SELECT distinct MANAGER FROM
                 order by MANAGER) as b
                 on a.DATE = b.DATE)")
 
+{
+    
+    external_javascript <- "<link href='https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css' rel='stylesheet'>
+    <script src='https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js'></script>
+    <link rel='stylesheet' href='https://cdn.rawgit.com/maxazan/jquery-treegrid/master/css/jquery.treegrid.css'>
+    <script type='text/javascript' src='https://cdn.rawgit.com/maxazan/jquery-treegrid/master/js/jquery.treegrid.js'></script>
+    <script type='text/javascript' src='https://cdn.rawgit.com/maxazan/jquery-treegrid/master/js/jquery.treegrid.bootstrap3.js'></script>
+    "
+}
 
 result <- lapply(managers, 
                  function(x){
@@ -35,6 +45,9 @@ bucket <- qry("SELECT DISTINCT bucket as Buckets
               FROM allmanagers
               WHERE bucket != ''
               ORDER BY bucket")
+max_date <- as.character(qry("select max(date) from barra"))
+overview_dates <- qry("select distinct DATE from barra
+                      order by Date DESC")
 
 selectTheme <- function(theme){
   switch(theme,
@@ -53,83 +66,113 @@ selectTheme <- function(theme){
 }
 
 ui <- fluidPage(
-  tags$head(HTML("
-                 <script src='https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.10.0/js/bootstrap-select.min.js'></script>
-                 <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.10.0/css/bootstrap-select.min.css'>
-                 <script>
-                 (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-                 (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-                 m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-                 })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-                 
-                 ga('create', 'UA-88914395-1', 'auto');
-                 ga('send', 'pageview');
-                 
-                 </script>
-                 ")),
+  tags$head(HTML(paste0(external_javascript,
+                        "<script src='https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.10.0/js/bootstrap-select.min.js'></script>
+                        <script src='https://gitcdn.github.io/troolee/gridstack.js'></script>
+                        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.10.0/css/bootstrap-select.min.css'>
+                        <script>
+                        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+                        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+                        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+                        
+                        ga('create', 'UA-88914395-1', 'auto');
+                        ga('send', 'pageview');
+                        
+                        </script>"))),
+#  HTML(nav_button("Risk Report")),
   titlePanel("Risk Report"),
-  fluidRow(
-    column(width = 9,
-           htmlOutput("hcontainer",height = "500px")
-    ),
-    column(width = 3, class = "panel",
-           HTML(paste0("
-                       <label for='manager'>Select Manager:</label>
-                       <select data-width='100%' class='selectpicker'  data-actions-box='true'
-                       data-live-search='true' multiple id='manager'
-                       title='Select Managers'>",result,"</select>
-                       </br>")
-           ),br(),
-           selectInput("bucketselect", label = "Bucket:",  width = "100%",
-                       choices = c("Select Bucket", bucket)
-           ),
-           selectInput("graphType", label = "Risk or Exposure?",
-                       choices = c("Risk", "Exposure"), 
-                       selected = "Contribution"),
-           conditionalPanel(
-             condition = "input.graphType == 'Risk'",
-             selectInput("risk", label = "Risk Type:",  width = "100%",
-                         choices = c("Contribution", "Percent_Contribution"))
-           ),
-           conditionalPanel(
-             condition = "input.graphType == 'Exposure'",
-             selectInput("exposure", label = "Exposure Type:",  width = "100%",
-                         choices = c("Time-Series", "Range"))
-           ),
-           selectInput("riskGroup", label = "Grouping:",  width = "100%",
-                       choices = c("Total", "Country", "Industry", "Style")
-           ),
-           conditionalPanel(
-             condition = "input.riskGroup != 'Total'",
-             HTML(paste0("
-                         <label for='factorSelect'>Select Factor:</label>
-                         <select data-width='100%' class='selectpicker'  data-actions-box='true'
-                         data-live-search='true' multiple id='factorSelect'
-                         title='Select Factors'>Test</select>
-                         </br>")
-             ),br()),
-           #            selectInput("type", label = "Graph Type:", width = "100%",
-           #                        choices = c("column", "line", "bar", "area")), 
-           selectInput("theme", label = "Theme:",  width = "100%",
-                       choices = c("None" = FALSE, "fivethirtyeight", "economist",
-                                   "darkunica", "gridlight", "sandsignika",
-                                   "simple","fintimes","dotabuff","google",
-                                   "flat", "flatdark")
-           ),
-           sliderInput("dateRange", width="80%",
-                       label="Date Range:", timeFormat="%b %Y",
-                       min = as.Date("2014-02-01"), max = as.Date("2017-01-31"), 
-                       value = c(as.Date("2014-02-01"), as.Date("2017-01-31"))
-           ),
-           downloadButton('downloadBarra', 'Download')
-             )
-             ),
+  tabsetPanel(
+    tabPanel(
+      "Risk Overview", br(),
+      fluidRow(
+        column(width=3, selectInput("overview_manager","Select Portfolio:",choices=managers)),
+        column(width=2, selectInput("overview_date","Select Date:",choices=overview_dates)),br(),
+        #column(width=1, actionButton("to_timeseries","",icon=icon('share-alt',lib='glyphicon'))),
+        column(width=2, HTML("<div style='margin-top: -11%'><label> Arrange by:</label>
+                             <input id='grouping' class='btn-lg' type='checkbox' data-width='150'
+                             checked data-toggle='toggle' data-on='Risk Contribution' data-off='Active Exposure' 
+                             data-onstyle='default'></div>
+                             "))
+        ),
+      fluidRow(
+        column(width=6, highchartOutput("overview_tl")),
+        column(width=6, highchartOutput("overview_tr"))
+      ),
+      fluidRow(
+        column(width=6, highchartOutput("overview_bl")),
+        column(width=6, highchartOutput("overview_br"))
+      ),
+      fluidRow(
+        column(width=6, highchartOutput("overview_bbl")),
+        column(width=6, highchartOutput("overview_bbr"))
+      )
+        ),
+    tabPanel("Time-Series",br(),
+             fluidRow(
+               column(width = 9,
+                      htmlOutput("hcontainer",height = "500px")
+               ),
+               column(width = 3, class = "panel",
+                      HTML(paste0("
+                                  <label for='manager'>Select Manager:</label>
+                                  <select data-width='100%' class='selectpicker'  data-actions-box='true'
+                                  data-live-search='true' multiple id='manager'
+                                  title='Select Managers'>",result,"</select>
+                                  </br>")),br(),
+                      selectInput("bucketselect", label = "Bucket:",  width = "100%",
+                                  choices = c("Select Bucket", bucket)),
+                      selectInput("graphType", label = "Risk or Exposure?",
+                                  choices = c("Risk", "Exposure"), 
+                                  selected = "Contribution"),
+                      conditionalPanel(
+                        condition = "input.graphType == 'Risk'",
+                        selectInput("risk", label = "Risk Type:",  width = "100%",
+                                    choices = c("Contribution", "Percent_Contribution"))),
+                      conditionalPanel(
+                        condition = "input.graphType == 'Exposure'",
+                        selectInput("exposure", label = "Exposure Type:",  width = "100%",
+                                    choices = c("Time-Series", "Range"))),
+                      selectInput("riskGroup", label = "Grouping:",  width = "100%",
+                                  choices = c("Total", "Country", "Industry", "Style")),
+                      conditionalPanel(
+                        condition = "input.riskGroup != 'Total'",
+                        HTML(paste0("
+                                    <label for='factorSelect'>Select Factor:</label>
+                                    <select data-width='100%' class='selectpicker'  data-actions-box='true'
+                                    data-live-search='true' multiple id='factorSelect'
+                                    title='Select Factors'>Test</select>
+                                    </br>")),br()),
+                      selectInput("theme", label = "Theme:",  width = "100%",
+                                  choices = c("None" = FALSE, "fivethirtyeight", "economist",
+                                              "darkunica", "gridlight", "sandsignika",
+                                              "simple","fintimes","dotabuff","google",
+                                              "flat", "flatdark")
+                      ),
+                      sliderInput("dateRange", width="80%",
+                                  label="Date Range:", timeFormat="%b %Y",
+                                  min = as.Date("2014-02-01"), max = as.Date(max_date), 
+                                  value = c(as.Date("2014-02-01"), as.Date(max_date))
+                      ),
+                      downloadButton('downloadBarra', 'Download')
+                        )
+                      ))),
   HTML("<script>
        $(document).ready(function(){
        
        $('#manager').selectpicker('deselectAll');
-       $('#manager').selectpicker('refresh');  
+       $('#manager').selectpicker('refresh');
+       
+       
        })
+       
+       $(function () {
+       var options = {
+       cell_height: 80,
+       vertical_margin: 10
+       };
+       $('.grid-stack').gridstack(options);
+       });
        
        var bucketList;
        var manArr;
@@ -621,11 +664,23 @@ server = function(session, input, output) {
       
       if(input$graphType == "Exposure"){
         
+        validate(
+          need(input$riskGroup!="Total","Select A Grouping")
+        )
+        
+        validate(
+          need(input$factorSelect!="Select a Factor","Select A Factor")
+        )
         
         exposure <- qry(paste0("select MANAGER, DATE, FACTOR, PARENT_NODE, ACT_EXP
                                from barraexposure
                                WHERE MANAGER = '",input$manager,"'
+                               and FACTOR IN (",factorSelect,")
                                ORDER BY DATE, MANAGER")) 
+        
+        validate(
+          need(nrow(exposure)>0,"Select A Factor")
+        )
         
         parentNode <- switch(input$riskGroup,
                              Style = unique(exposure[exposure$PARENT_NODE == '/Risk Indices',"FACTOR"]),
@@ -646,6 +701,10 @@ server = function(session, input, output) {
                  graph3$DATE >= start,
                  graph3$DATE <= end)
         
+        # if(input$factorSelect != "All"){
+        #   graph3 <- graph3 %>% filter(FACTOR == input$factorSelect)
+        # }
+        
         if(month(start) == month(end) & year(start) == year(end)){
           
           data <- graph3[graph3$FACTOR %in% parentNode, c("FACTOR","ACT_EXP")] %>% arrange(FACTOR)
@@ -654,11 +713,14 @@ server = function(session, input, output) {
           
           if(input$riskGroup == "Style"){
             
+            
+            
             data[data$FACTOR %in% c("Book-to-Price","Dividend Yield", "Earnings Yield"),"COLOR"] <- "blue"
             data[data$FACTOR %in% c("Growth"),"COLOR"] <- "green"
-            data[data$FACTOR %in% c("Non-linear Size", "Size", "Liquidity"),"COLOR"] <- "red"
+            data[data$FACTOR %in% c("Non-linear Size", "Size", "Liquidity", "Mid Capitalization"),"COLOR"] <- "red"
             data[data$FACTOR %in% c("Momentum"),"COLOR"] <- "black"
-            data[data$FACTOR %in% c("Leverage"),"COLOR"] <- "yellow"
+            data[data$FACTOR %in% c("Leverage", "Earnings Quality", "Investment Quality",
+                                    "Earnings Variability", "Profitability"),"COLOR"] <- "yellow"
             data[data$FACTOR %in% c("Residual Volatility","Beta"),"COLOR"] <- "purple"
             
             factorOrder <- c("Book-to-Price","Dividend Yield", "Earnings Yield", "Growth",
@@ -896,7 +958,400 @@ server = function(session, input, output) {
     }
   )
   
+  output$overview_tl <- renderHighchart({
+    
+    man <- input$overview_manager
+    sel_date <- input$overview_date
+    # # 
+         # man <- "Neptune"
+         # sel_date <- '2017-01-31'
+    
+    te <- qry(paste0("select round(ACT_RISK_CONT,2) as result
+                     from barra
+                     where MANAGER = '",man,"'
+                     and DATE = '",sel_date,"'
+                     and RISK_SOURCE = 'Total'"))$result
+    
+    overview_data <- qry(paste0("(select * from barra 
+                                where MANAGER = '",man,"'
+                                and DATE = '",sel_date,"'
+                                and PARENT_NODE NOT IN 
+                                ('/Total','/Common Factor','/Total/Local Excess/Residual/Common Factor',
+                                '/Total/Local Excess/Residual','/')
+                                AND RISK_SOURCE NOT IN ('Total', 'Local Excess','Common Factor','Residual')
+                                AND ACT_RISK_PERC > 0
+                                ORDER BY PARENT_NODE)
+                                UNION 
+                                (select * from barra 
+                                where MANAGER = '",man,"'
+                                and DATE = '",sel_date,"'
+                                AND RISK_SOURCE in ('Specific','World'))")) %>% 
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Currency","Currency")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual","Specific")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor","Cash")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor/Country","Country")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor/Industry","Industry")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor/Risk Indices","Style")) %>%
+      arrange(PARENT_NODE, ACT_RISK_PERC)
+    
+    overview_data2 <- overview_data %>% group_by(PARENT_NODE) %>% summarise(PARENT_SUM = sum(ACT_RISK_PERC))
+    
+    risk_groups <- c('Currency', 'Specific','Country', 'Industry', 'Style', 'Cash')
+    risk_colors <- c('#7cb5ec', '#434348', '#90ed7d', '#f7a35c', '#8085e9', 
+                     '#f15c80', '#e4d354', '#2b908f', '#f45b5b', '#91e8e1')
+    
+    overview_data$colour <- as.character(sapply(overview_data$PARENT_NODE,function(x){risk_colors[match(x,risk_groups)]}))
+    overview_data2$colour <- as.character(sapply(overview_data2$PARENT_NODE,function(x){risk_colors[match(x,risk_groups)]}))
+    
+    overview_data <- overview_data %>% filter(!is.na(colour))
+    overview_data2 <- overview_data2 %>% filter(!is.na(colour))
+    
+    hc <- hchart(overview_data2, type="pie", hcaes(x="PARENT_NODE", y="PARENT_SUM", color="colour"),
+                 innerSize='50%',size='80%', showInLegend=TRUE,
+                 borderColor= '#000000',
+                 borderWidth= .5) %>% #, dataLabels=list(enabled=TRUE)) %>%
+      hc_chart(borderColor= '#000000', borderWidth= .5, type='line') %>%
+      hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+      hc_plotOptions(pie=list(dataLabels=list(enabled=FALSE)),
+                     series=list(point=list(events=list(
+                       mouseOver="function(){
+                       var chart = this.series.chart;
+                       chart.setTitle({text:'New title'});
+  }"
+                           )))) %>%
+      hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>') %>%
+      hc_add_series(overview_data, type='pie', hcaes(x="RISK_SOURCE", y="ACT_RISK_PERC", color='colour'),
+                    innerSize='70%', borderColor= '#000000', borderWidth= .5) %>%
+      hc_title(text=paste0(te,'%'), verticalAlign='middle', floating=TRUE, y=-10) %>%
+      hc_subtitle(text='Tracking Error:', verticalAlign='middle', floating=TRUE, y=-30)
+    
+    return(hc)
+    
+    })
+  
+  output$overview_tr <- renderHighchart({
+    
+    man <- input$overview_manager
+    sel_date <- input$overview_date
+    
+    # man <- "ABERDEEN ASSET MGMT"
+    # sel_date <- '2017-03-31'
+    # 
+    
+    overview_data <- qry(paste0("(select * from barra 
+                                where MANAGER = '",man,"'
+                                and DATE = '",sel_date,"'
+                                and PARENT_NODE NOT IN 
+                                ('/Total','/Common Factor','/Total/Local Excess/Residual/Common Factor',
+                                '/Total/Local Excess/Residual','/')
+                                AND RISK_SOURCE NOT IN ('Total', 'Local Excess','Common Factor','Residual')
+                                AND ACT_RISK_PERC > 0
+                                ORDER BY PARENT_NODE)
+                                UNION 
+                                (select * from barra 
+                                where MANAGER = '",man,"'
+                                and DATE = '",sel_date,"'
+                                AND RISK_SOURCE in ('Specific','World'))")) %>% 
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Currency","Currency")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual","Specific")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor","Cash")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor/Country","Country")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor/Industry","Industry")) %>%
+      mutate(PARENT_NODE= replace(PARENT_NODE,PARENT_NODE=="/Total/Local Excess/Residual/Common Factor/Risk Indices","Style")) %>%
+      arrange(PARENT_NODE, ACT_RISK_PERC) %>% filter(RISK_SOURCE != 'Specific') %>% arrange(desc(ACT_RISK_PERC)) %>%slice(1:10) 
+    
+    risk_groups <- c('Currency', 'Specific','Country', 'Industry', 'Style', 'Cash')
+    risk_colors <- c('#7cb5ec', '#434348', '#90ed7d', '#f7a35c', '#8085e9', 
+                     '#f15c80', '#e4d354', '#2b908f', '#f45b5b', '#91e8e1')
+    
+    overview_data$colour <- as.character(sapply(overview_data$PARENT_NODE,function(x){risk_colors[match(x,risk_groups)]}))
+    
+    hc <- hchart(overview_data, type="bar", 
+                 hcaes(x='RISK_SOURCE', y='ACT_RISK_PERC', color='colour'),
+                 showInLegend=F,
+                 borderColor= '#000000',
+                 borderWidth= 1) %>%
+      hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+      hc_chart(borderColor= '#000000', borderWidth= .5, type='line') %>%
+      hc_title(text="Top 10 Risk Contributors") %>%
+      hc_yAxis(title=list(text="Total Risk Contribution (%)"))%>%
+      hc_xAxis(title=list(text=""))#%>%
+    # hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+    # hc_xAxis(title=list(text=NULL),
+    #          min= 0,
+    #          max= 4,
+    #          scrollbar=list(
+    #            enabled= 'true',
+    #            tickLength= 0)) %>%
+    # hc_yAxis(title=list(text=NULL)) #%>%
+    # hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>')
+    
+    hc
+    
+  })
+  
+  output$overview_bl <- renderHighchart({
+    
+    man <- input$overview_manager
+    sel_date <- input$overview_date
+    
+    country_exposure <- qry(paste0("select FACTOR, PORT_EXP, BMK_EXP, ACT_EXP
+                                   from barraexposure 
+                                   where MANAGER = '",man,"'
+                                   and DATE = '",sel_date,"'
+                                   and PARENT_NODE IN 
+                                   ('/Country')
+                                   ORDER BY ACT_EXP DESC"))
+    
+    country_risk<- qry(paste0("select RISK_SOURCE as FACTOR, ACT_RISK_PERC
+                              from barra 
+                              where MANAGER = '",man,"'
+                              and DATE = '",sel_date,"'
+                              and PARENT_NODE IN 
+                              ('/Total/Local Excess/Residual/Common Factor/Country')
+                              ORDER BY ACT_RISK_PERC DESC"))
+    
+    
+    country_data <- country_exposure %>% left_join(country_risk, by='FACTOR')
+    
+    if(input$grouping){
+      country_data <- country_data %>% arrange(desc(ACT_RISK_PERC))
+    }else{
+      country_data <- country_data %>% arrange(desc(ACT_EXP))
+    }
+    
+    country_data <- melt(country_data)
+    
+    hc <- hchart(country_data, type="bar", hcaes(x='FACTOR', y='value', group='variable'),
+                 borderColor= '#000000',
+                 borderWidth= 1) %>%
+      hc_chart(borderColor= '#000000', borderWidth= .5, type='line') %>%
+      hc_title(text="Active Risk, Country Contributors") %>%
+      hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+      hc_xAxis(title=list(text=NULL),
+               min= 0,
+               max= 4,
+               scrollbar=list(
+                 enabled= 'true',
+                 tickLength= 0)) %>%
+      hc_yAxis(title=list(text="")) #%>%
+    # hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>')
+    
+    hc
+    
+  })
+  
+  output$overview_br <- renderHighchart({
+    
+    man <- input$overview_manager
+    sel_date <- input$overview_date
+    
+    country_exposure <- qry(paste0("select FACTOR, PORT_EXP, BMK_EXP, ACT_EXP
+                                   from barraexposure 
+                                   where MANAGER = '",man,"'
+                                   and DATE = '",sel_date,"'
+                                   and PARENT_NODE IN 
+                                   ('/Industry')
+                                   ORDER BY ACT_EXP DESC"))
+    
+    country_risk<- qry(paste0("select RISK_SOURCE as FACTOR, ACT_RISK_PERC
+                              from barra 
+                              where MANAGER = '",man,"'
+                              and DATE = '",sel_date,"'
+                              and PARENT_NODE IN 
+                              ('/Total/Local Excess/Residual/Common Factor/Industry')
+                              ORDER BY ACT_RISK_PERC DESC"))
+    
+    
+    country_data <- country_exposure %>% left_join(country_risk, by='FACTOR')
+    
+    if(input$grouping){
+      country_data <- country_data %>% arrange(desc(ACT_RISK_PERC))
+    }else{
+      country_data <- country_data %>% arrange(desc(ACT_EXP))
+    }
+    
+    country_data <- melt(country_data)
+    
+    hc <- hchart(country_data, type="bar", hcaes(x='FACTOR', y='value', group='variable'),
+                 borderColor= '#000000',
+                 borderWidth= 1) %>%
+      hc_chart(borderColor= '#000000', borderWidth= .5, type='line') %>%
+      hc_title(text="Active Risk, Industry Contributors") %>%
+      hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+      hc_xAxis(title=list(text=NULL),
+               min= 0,
+               max= 4,
+               scrollbar=list(
+                 enabled= 'true',
+                 tickLength= 0)) %>%
+      hc_yAxis(title=list(text="")) #%>%
+    # hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>')
+    
+    hc
+    
+  })
+  
+  output$overview_bbl <- renderHighchart({
+    
+    man <- input$overview_manager
+    sel_date <- input$overview_date
+    
+    country_exposure <- qry(paste0("select FACTOR, PORT_EXP, BMK_EXP, ACT_EXP
+                                   from barraexposure 
+                                   where MANAGER = '",man,"'
+                                   and DATE = '",sel_date,"'
+                                   and PARENT_NODE IN 
+                                   ('/Risk Indices')
+                                   ORDER BY ACT_EXP DESC"))
+    
+    country_risk<- qry(paste0("select RISK_SOURCE as FACTOR, ACT_RISK_PERC
+                              from barra 
+                              where MANAGER = '",man,"'
+                              and DATE = '",sel_date,"'
+                              and PARENT_NODE IN 
+                              ('/Total/Local Excess/Residual/Common Factor/Risk Indices')
+                              ORDER BY ACT_RISK_PERC DESC"))
+    
+    
+    country_data <- country_exposure %>% left_join(country_risk, by='FACTOR') 
+    
+    if(input$grouping){
+      country_data <- country_data %>% arrange(desc(ACT_RISK_PERC))
+    }else{
+      country_data <- country_data %>% arrange(desc(ACT_EXP))
+    }
+    
+    country_data <- melt(country_data)
+    
+    perc_range <- max(abs(min(country_data$value[country_data$variable == 'ACT_RISK_PERC'], na.rm=T)),
+                      max(country_data$value[country_data$variable == 'ACT_RISK_PERC'], na.rm=T)) * 1.25
+    
+    exp_range <- max(abs(min(country_data$value[country_data$variable != 'ACT_RISK_PERC'], na.rm=T)),
+                     max(country_data$value[country_data$variable != 'ACT_RISK_PERC'], na.rm=T)) * 1.25
+    
+    
+    hc <- hchart(country_data[country_data$variable != 'ACT_RISK_PERC',],
+                 type="bar", hcaes(x='FACTOR', y='value', group='variable'),
+                 borderColor= '#000000', borderWidth= 1) %>%
+      hc_chart(borderColor= '#000000', borderWidth= .5, type='line') %>%
+      hc_title(text="Active Risk, Style Contributors") %>%
+      hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+      hc_xAxis(title=list(text=NULL),
+               min= 0,
+               max= 4,
+               scrollbar=list(
+                 enabled= 'true',
+                 tickLength= 0)) %>%
+      hc_yAxis(title=list(text="")) %>%
+      hc_yAxis_multiples(
+        list(
+          title = list(text = "Active Exposure"),
+          min=-exp_range, max=exp_range,
+          labels=list(format='{value:.1f}')
+        ),
+        list(
+          title = list(text = "Risk Contribution (%)"),
+          opposite = TRUE, min=-perc_range,max=perc_range,
+          labels=list(format='{value:.1f}')
+        )
+      ) %>%
+      hc_add_series(country_data[country_data$variable == 'ACT_RISK_PERC',], 
+                    type="bar", hcaes(x='FACTOR', y='value'), name='ACT_RISK_PERC',
+                    borderColor= '#000000', borderWidth= 1, yAxis=1)
+    # hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>')
+    
+    hc
+    
+  })
+  
+  output$overview_bbr <- renderHighchart({
+    
+    man <- input$overview_manager
+    sel_date <- input$overview_date
+    
+    country_exposure <- qry(paste0("select FACTOR, PORT_EXP, BMK_EXP, ACT_EXP
+                                   from barraexposure 
+                                   where MANAGER = '",man,"'
+                                   and DATE = '",sel_date,"'
+                                   and PARENT_NODE IN 
+                                   ('/Currency')
+                                   ORDER BY ACT_EXP DESC"))
+    
+    country_risk<- qry(paste0("select RISK_SOURCE as FACTOR, ACT_RISK_PERC
+                              from barra 
+                              where MANAGER = '",man,"'
+                              and DATE = '",sel_date,"'
+                              and PARENT_NODE IN 
+                              ('/Total/Currency')
+                              ORDER BY ACT_RISK_PERC DESC"))
+    
+    
+    country_data <- country_exposure %>% left_join(country_risk, by='FACTOR')
+    
+    if(input$grouping){
+      country_data <- country_data %>% arrange(desc(ACT_RISK_PERC))
+    }else{
+      country_data <- country_data %>% arrange(desc(ACT_EXP))
+    }
+    
+    country_data <- melt(country_data)
+    
+    hc <- hchart(country_data, type="bar", hcaes(x='FACTOR', y='value', group='variable'),
+                 borderColor= '#000000',
+                 borderWidth= 1) %>%
+      hc_chart(borderColor= '#000000', borderWidth= .5, type='line') %>%
+      hc_title(text="Active Risk, Currency Contributors") %>%
+      hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+      hc_xAxis(title=list(text=NULL),
+               min= 0,
+               max= 4,
+               scrollbar=list(
+                 enabled= 'true',
+                 tickLength= 0)) %>%
+      hc_yAxis(title=list(text="")) #%>%
+    # hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>')
+    
+    hc
+    
+  })
+  
+  
+  
+  # output$overview_tr <- renderHighchart({
+  #   
+  #   man <- input$overview_manager
+  #   sel_date <- input$overview_date
+  #   
+  #   country_data <- qry(paste0("select RISK_SOURCE, PORT_RISK_PERC, BMK_RISK_PERC, ACT_RISK_PERC
+  #                              from barra 
+  #                              where MANAGER = '",man,"'
+  #                              and DATE = '",sel_date,"'
+  #                              and PARENT_NODE IN 
+  #                              ('/Total/Local Excess/Residual/Common Factor/Industry')
+  #                              ORDER BY ACT_RISK_PERC DESC")) %>% 
+  #                               melt() %>% 
+  #     left_join(qry("select Sector, Industry as RISK_SOURCE 
+  #                   from industrysectormap"), by="RISK_SOURCE") %>%
+  #     group_by(Sector, variable) %>% summarise(value = sum(value)) %>%
+  #     as.data.frame() %>% arrange(variable, desc(value))
+  #   
+  #   hc <- hchart(country_data, type="bar", hcaes(x='Sector', y='value', group='variable')) %>%
+  #     hc_title(text="Top 10 Industry Risk Contributors") %>%
+  #     hc_exporting(enabled = TRUE, filename = "custom-file-name") %>%
+  #     hc_xAxis(title=list(text=NULL),
+  #              min= 0,
+  #              max= 4,
+  #              scrollbar=list(
+  #                enabled= 'true',
+  #              tickLength= 0)) %>%
+  #     hc_yAxis(title=list(text=NULL)) %>%
+  #     hc_tooltip(pointFormat='{series.name}: <b>{point.percentage:.2f}%</b>')
+  #   
+  #   hc
+  #   
+  # })
+  
   }
 
 shinyApp(ui = ui, server = server)
-
