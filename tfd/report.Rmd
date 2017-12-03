@@ -2,7 +2,7 @@
 output: pdf_document
 geometry: margin=.5in
 ---
-# Invoice #: `r paste0(32425242)`   
+# Invoice #: `r invoice_number`   
 ```{r, echo=FALSE, out.width = "275px", fig.align="center"}
 knitr::include_graphics("/srv/shiny-server/tfd/tfd.jpg")
 ```
@@ -15,7 +15,7 @@ knitr::include_graphics("/srv/shiny-server/tfd/tfd.jpg")
 | **Invoice:**    | |**Customer Details:** |
 |----------------|-|-----------------|
 |Date: `r format(Sys.Date(), "%m/%d/%Y") `| | Name: `r input$customer_name` |
-|Invoice #: 32425242  |  | Address: `r input$customer_add` |
+|Invoice #: `r invoice_number`  |  | Address: `r input$customer_add` |
 |Sales Rep: `r input$sales_rep `|  | Phone: `r input$customer_phone1` |
 | |  | Email: `r input$customer_email` |
 

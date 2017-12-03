@@ -79,7 +79,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 				<div class="w3_banner_info_grid">
 					<h2 data-aos="fade-right">Hi, I'm </h2>
 					<h2 data-aos="fade-right">Shane Varn.</h2>
-					<h5><b>Business Accumen, Technical Skills</b></h5>
+					<h5><b>&nbsp;Business Accumen, Technical Skills</b></h5>
 					<p style="background:white; align:center; padding:18px; 
 					 border-radius: 25px; ">
 					  This website was developed to showcase some of my professional and personal work. 
@@ -87,7 +87,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 					   website, you'll find examples of the skills I've developed over the years and how I've used these skills to add              value at the organizations where I've been employed.</p>
 					<ul data-aos="slide-up">
 						<li><a href="#" class="w3ls_more" data-toggle="modal" data-target="#myModal">Contact Card</a></li>
-						<li><a href="/resume" class="scroll w3l_contact"><i class="fa fa-download" aria-hidden="true"></i> Resume</a></li>
+						<li><a href="/resume" class="w3l_contact"><i class="fa fa-download" aria-hidden="true"></i> Resume</a></li>
 					</ul>
 				</div>
 			</div>
@@ -171,14 +171,15 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 		<p style="font-family: 'Mrs Sheppards', cursive; font-size: 450%;">Shane Varn</p>
 	</div>
 	<div data-aos="flip-right" class="col-md-6 about-right">
-		<img src="images/eoy.jpg" style="height:55%;width:55%" alt="" align='center' />
+		<img src="images/eoy.jpg" style="height:50%;width:50%;border-radius: 50px; 
+		margin-left: 110px; margin-top:13px;" alt="" align='center' />
 	</div>
 	<div class="clearfix"></div>
 </div>
 <!-- //about -->
 
 <!-- skills -->
-<div class="skills" id="skills">
+<div class="skills" id="skills" style="position: 'relative'; top: '-35%'">
 	<div class="container">
 				<h3 data-aos="zoom-in">Technical Skills</h3>
 		<div class="skill-grids">
@@ -256,9 +257,9 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			</div> <!-- End Skill Bar -->
 
 				<p class="p1">Above is list of skills and the general length of the time I've employed 
-			 these skills in the workplace. Each of these were developed through self-direction
+			 these skills in the workplace. Each of these skills were developed through self-direction
 				as obvious opportunities for process improvement arose over the course of work. As technology becomes 
-				increasingly integrated across industries, the need for these type of technical skills has become ever present.</p>
+				increasingly integrated in workflow across industries, the need for these type of technical skills has become ever present.</p>
 			<!-- //Skills -->
 			</div>
 			<div class="clearfix"></div>
@@ -293,7 +294,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 					 <div class="education-agile-w3l-info last">
 					       <h4>Real Estate, BS</h4>
 					       <h6>Florida State University</h6>
-						   <p>Learned skills necessary for a positions in mortgage banking 
+						   <p>Learned skills necessary for a position in mortgage banking 
 						   and institutional lending, brokerage, leasing, appraisal, consulting, investment, development 
 						   activities, & corporate real estate.</p>
 
@@ -336,7 +337,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 					       <h4>Manager of Investment Analytics</h4>
 					       <h6>Florida State Board of Administration</h6>
 						   <p>Create & manage processes for a web-based internal analytics platform for a 
-						        $70B+ equities portfolio. </p>
+						        $70B+ equities portfolio while actively participating in portfolio management decisions. </p>
 				     </div>
 				      <div class="clearfix"></div>
 				  </div>
@@ -360,7 +361,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 					       <h4>Internal Auditor</h4>
 					       <h6>Florida Dept of Environ. Protection</h6>
 						   <p>Conducted internal audits of Department Programs utilizing 
-						   technology to gather and analyze relevant data.</p>
+						   written programs to gather and analyze relevant data.</p>
 				     </div>
 				      <div class="clearfix"></div>
 				  </div>
@@ -392,7 +393,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 				<ul>
 					<li><a href="#section-bar-1" class="icon icon-box"><span>Web Design</span></a></li>
 					<li><a href="#section-bar-2" class="icon icon-display"><span>App Development</span></a></li>
-					<li><a href="#section-bar-3" class="icon icon-upload"><span>Presentations</span></a></li>
+				<!--	<li><a href="#section-bar-3" class="icon icon-upload"><span>Presentations</span></a></li> -->
 					<li><a href="#section-bar-4" class="icon icon-tools"><span>Course Work</span></a></li>
 				</ul>
 			</nav>
@@ -599,6 +600,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 				<!-- //Tab-2 -->
 
 				<!-- Tab-3 -->
+				<!--
 				<section id="section-bar-3" class="agileits w3layouts">
 					<h4>UI/UX Design</h4>
 					<div class="gallery-grids">
@@ -694,7 +696,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 						</div>
 						<div class="clearfix"></div>
 					</div>
-				</section>
+				</section> -->
 				<!-- //Tab-3 -->
 
 				<!-- Tab-4 -->
@@ -808,7 +810,7 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			<h3 data-aos="zoom-in" >contact me</h3>
 				<p>Included below is my contact information. Please feel free to reach out to me should you find my skillset
 				aligns with a project or position within your organization. I love new challanges and welcome not only full-time             opportunities, but consulting or short-term contract jobs as well.</p>
-			<form action="#" method="post">
+			<form action="php/contact-form-handler.php" method="post" name="contact_form">
 					<div class="col-md-6 agileits_agile_about_mail_left">
 						<input type="text" name="Name" placeholder="Name" required="">
 						<input type="text" name="Subject" placeholder="Company Name" required="">
@@ -826,25 +828,25 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 			<div data-aos="flip-down" class="col-md-6 contactright1">
 			<span class="glyphicon glyphicon-map-marker" aria-hidden="true"></span>
 			<h4>Location</h4>
-			<p>536 E Pensacola Street<br>Tallahassee, FL 32301<br>USA</p>
+			<p>536 E. Pensacola Street<br>Tallahassee, FL 32301<br>USA</p>
 			</div>
 			<div data-aos="flip-down" class="col-md-6 contactright1">
 			<span class="glyphicon glyphicon-phone" aria-hidden="true"></span>
 			<h4>Phone</h4>
-			<p>+1(850) 508 3413</p>
+			<p>+1 (850) 508-3413</p>
 			</div>
 			<div class="clearfix"></div>
 			<div data-aos="flip-up" class="col-md-6 contactright1">
 			<span class="glyphicon glyphicon-envelope" aria-hidden="true"></span>
 			<h4>Mail</h4>
-			<p><a href="mailto:sav08@my.fsu.edu">sav08@my.fsu.edu</a></p>
+			<p><a href="mailto:shaneav2749@gmail.com">shaneav2749@gmail.com</a></p>
 			</div>
 			<div data-aos="flip-up" class="col-md-6 contactright1">
 
 			</div>
 			<div class="clearfix"></div>
 			<ul class="top-links">
-				<li data-aos="flip-right"><a href="#"><i class="fa fa-linkedin"></i></a></li>
+				<li data-aos="flip-right"><a href="https://www.linkedin.com/in/shane-varn-76204251"><i class="fa fa-linkedin"></i></a></li>
 				<li data-aos="flip-right"><a href="#"><i class="fa fa-github"></i></a></li>
 				<li data-aos="flip-right"><a href="#"><i class="fa fa-facebook"></i></a></li>
 				<li data-aos="flip-right"><a href="#"><i class="fa fa-instagram"></i></a></li>
@@ -942,6 +944,14 @@ Smartphone Compatible web template, free webdesigns for Nokia, Samsung, LG, Sony
 	});
 </script> 
 <!-- //scrolling script -->
+
+<script language="JavaScript">
+var frmvalidator  = new Validator("contactform");
+frmvalidator.addValidation("Name","req","Please provide your name");
+frmvalidator.addValidation("Email","req","Please provide your email");
+frmvalidator.addValidation("Email","email",
+  "Please enter a valid email address");
+</script>
 
 </body>
 </html>

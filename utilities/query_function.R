@@ -3,8 +3,8 @@ qry <- function(string){
   
   library(RMySQL)
   
-  hst <-"127.0.0.1"
-  usr <- "root"
+  hst <-"104.131.115.73"
+  usr <- "shane"
   pwd <- "0117"
   dbTab <- "holdings"
   prt <- 3306
@@ -26,8 +26,8 @@ app <- function(object, table){
   
   library(RMySQL)
   
-  hst <-"127.0.0.1"
-  usr <- "root"
+  hst <-"104.131.115.73"
+  usr <- "shane"
   pwd <- "0117"
   dbTab <- "holdings"
   prt <- 3306

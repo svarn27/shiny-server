@@ -12,6 +12,7 @@ source(paste0(baseDir,"query_function.R"))
 timezone <- 'America/New_York'
 inventory <- qry("select * from inventory where Transaction ='Purchase'")
 sales_reps <- c('Josh', 'Sandi')
+order_names <- qry(paste0("select Order_Name from orders where Sales_Rep = '",sales_reps[1],"'"))$Order_Name
 curr_orders <<- lapply(sales_reps, function(i){
                   qry(paste0("select distinct Order_Name 
                     from orders
@@ -36,6 +37,18 @@ tax_rt <- 7.5
         updateNumericInput(session,paste0(id, "_price"),value=sale)
       })
       
+      observeEvent(input[[ paste0(id, "_total") ]],{
+        
+        total <- input[[ paste0(id, "_price") ]]
+        cost <- input[[ paste0(id, "_cost") ]]
+        quantity <- as.numeric(input[[ paste0(id, "_quant") ]])
+        profit_dollars <- (total - cost) * quantity
+        profit_margin <- ((total - cost)/cost) * 100
+        
+        updateNumericInput(session,paste0(id, "_prof"),value=profit_dollars)
+        updateNumericInput(session,paste0(id, "_profmargin"),value=profit_margin)
+      })
+      
       observeEvent(input[[ paste0(id, "_price") ]],{
         price <- input[[ paste0(id, "_price") ]]
         quantity <- as.numeric(input[[ paste0(id, "_quant") ]])
@@ -45,6 +58,7 @@ tax_rt <- 7.5
       observeEvent(input[[ paste0(id, "_quant") ]],{
         price <- input[[ paste0(id, "_price") ]]
         quantity <- as.numeric(input[[ paste0(id, "_quant") ]])
+        
         updateNumericInput(session,paste0(id, "_total"),value=as.numeric(price*quantity))
       })
       
@@ -213,6 +227,22 @@ border-radius: 34px;
 .slider.round:before {
 border-radius: 50%;
 }
+#myInput {
+
+    width: 100%; /* Full-width */
+    font-size: 16px; /* Increase font-size */
+    padding: 12px 20px 12px 40px; /* Add some padding */
+    border: 1px solid #ddd; /* Add a grey border */
+    margin-bottom: 12px; /* Add some space below the input */
+}
+
+#completed_orders td:nth-child(1):hover{
+
+font-weight:bold;
+text-decoration:underline;
+cursor: pointer;
+
+}
   </style>'
 }
 
@@ -301,6 +331,27 @@ border-radius: 50%;
   Shiny.addCustomMessageHandler('jsCode', function(e){
   eval(e);
   })
+
+function prodSearch() {
+  // Declare variables 
+  var input, filter, table, tr, td, i;
+  input = document.getElementById('myInput');
+  filter = input.value.toUpperCase();
+  table = document.getElementById('merchandise');
+  tr = table.getElementsByTagName('tr');
+
+  // Loop through all table rows, and hide those who don't match the search query
+  for (i = 0; i < tr.length; i++) {
+    td = tr[i].getElementsByTagName('td')[0];
+    if (td) {
+      if (td.innerHTML.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = '';
+      } else {
+        tr[i].style.display = 'none';
+      }
+    } 
+  }
+}
   </script>"
   
   javascript2 <- "<script>
@@ -390,6 +441,41 @@ border-radius: 50%;
   });
 
 })
+
+///Shiny.addCustomMessageHandler('ordersTable', function(message){
+  
+
+$(document).on('click','.remove', function(){
+    var rand = Math.random();
+    var rowNum = this.id;
+
+    Shiny.onInputChange('removeOrder', [rowNum,rand]);
+  });
+
+$(document).on('change','.total', function(){
+
+    //alert($(this :input).val());
+      
+
+
+  });
+
+$(document).on('click','#completed_orders tr', function(){
+    
+   var invoice_num = $(this).find('td:first').text();
+   window.open('https://shanevarn.com/invoices/' + invoice_num.trim() + '.pdf');
+
+  });
+
+
+Shiny.addCustomMessageHandler('downloadInvoice',
+        function(message) {
+          eval(message.value);
+        }
+      )
+
+///});
+
 </script>
   "
   }
@@ -400,7 +486,7 @@ border-radius: 50%;
   <thead>
   <th >Item</th>
   <th >Item #</th>
-  <th >Retail Price</th>
+  <th >Retail</th>
   <th >Discount</th>
   <th >Sale Price</th>
   <th width='15%'>Quantity</th>
@@ -428,8 +514,8 @@ border-radius: 50%;
                          <td>",numericInput(paste0(item_id,"_disc"),label="",value=0),"</td>
                          <td>",numericInput(paste0(item_id,"_price"),label="",value=retail_price),"</td>
                          <td>",quant_input2(paste0(item_id,"_quant")),"</td>
-                         <td>",numericInput(paste0(item_id,"_total"),label="",value=retail_price),"</td>
-                         <td class='dealer'>",cost,"</td>
+                         <td>",div(class='total', numericInput(paste0(item_id,"_total"),label="",value=retail_price)),"</td>
+                         <td class='dealer'>",numericInput(paste0(item_id,"_cost"),label="",value=cost),"</td>
                          <td class='dealer'>",numericInput(paste0(item_id,"_profmargin"),label="",value=profit_margin),"</td>
                          <td class='dealer'>",numericInput(paste0(item_id,"_prof"),label="",value=profit_dollars),"</td>
                          <td>",actionButton(paste0(item_id,"_add"),'', icon=icon('plus',lib='glyphicon')),"</td>
@@ -442,12 +528,15 @@ border-radius: 50%;
 # Define UI
 {
 ui <- fluidPage(tags$head(HTML(on_load),HTML(javascript2),
-                          HTML("<link href=\"https://fonts.googleapis.com/css?family=Ubuntu\" rel=\"stylesheet\">"),
+                          HTML("<link href=\"https://fonts.googleapis.com/css?family=Ubuntu\" rel=\"stylesheet\">
+                                <link href=\"https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css\" rel=\"stylesheet\">
+                                <script src=\"https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js\"></script>
+                               "),
                           HTML(css)),
-                titlePanel('Business Management System'),
+                titlePanel('Tallahassee Furniture Direct'),
                     fluidRow(
                     column(width=3,selectInput('sales_rep', "Sales Rep:", sales_reps)),
-                    column(width=3,selectInput('order_name', 'Order Name:', curr_orders)),
+                    column(width=3,selectInput('order_name', 'Order Name:', order_names)),
                     column(width=3,input_w_button("order_input","New Order:","Add order...","add_order","plus")),
                     column(width=3,
                            HTML("<label class='control-label' for='clr_order'> </label><br>"),
@@ -463,8 +552,11 @@ ui <- fluidPage(tags$head(HTML(on_load),HTML(javascript2),
                                     <input type='checkbox'>
                                     <span class='slider round'></span>
                                   </label></div>"))),
-                           HTML(table_html)),
-                  tabPanel(title = 'Orders', value='panel_orders',
+                           HTML("<input type='text' id='myInput' onkeyup='prodSearch()' placeholder='Search for Product..'>"),
+                           br(),
+                           HTML(table_html),
+                           br(),br()),
+                  tabPanel(title = div(style="color:black;", 'Orders'), value='panel_orders',
                            fluidRow(
                              column(width=10, h2("Current Orders", align='center')),
                              column(width=2,br(),
@@ -479,17 +571,22 @@ ui <- fluidPage(tags$head(HTML(on_load),HTML(javascript2),
                                            div(align='right',actionButton('complete_order', label="Complete Order",
                                                         icon=icon("ok-circle", lib='glyphicon')))
                                            ))),
-                  tabPanel(title = 'Analytics', value='panel_analytics'),
-                  tabPanel(title = 'Inventory', value='panel_inventory',
+                  tabPanel(title = div(style="color:black;", 'Analytics'), value='panel_analytics'),
+                  tabPanel(title = div(style="color:black;", 'Inventory'), value='panel_inventory',
                            fluidRow(
                              column(width=1,NULL),
-                             column(width=2, h2("Inventory")),
-                             column(width=9,br(),div(align='center',actionButton('input_inventory', "Upload Inventory")))
+                             column(width=1, h2("Inventory")),
+                             column(width=3,
+                              HTML("<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+                                   <input type='checkbox' id='inventory_type' checked data-toggle='toggle' data-on='Current' 
+                                   data-off='Transactions' data-onstyle='default'  data-width='120'>")
+                             ),
+                             column(width=5,br(),div(align='center',actionButton('input_inventory', "Upload Inventory")))
                            ),
                            column(width=1, NULL),
                            tableOutput('inventory_table')
                   ),
-                  tabPanel(title = 'Sales', value='panel_complete',
+                  tabPanel(title = div(style="color:black;", 'Sales'), value='panel_complete',
                            fluidRow(column(width=3, h2("Sale Records", align='center'))),
                            tableOutput('completed_orders'),
                            br(),br(),br())
@@ -502,7 +599,7 @@ server <- function(input,output,session){
   #Reactive order tracker
   orders = reactiveValues()
   
-  #Generage Observers on Page Load
+  #Generate Observers on Page Load
   observeEvent(input$page_loaded,{
     observers <<- generateObservers(inventory$Item., length(item_list), input, output, session, orders)
   })
@@ -519,6 +616,25 @@ server <- function(input,output,session){
     orders$df <- orders_df
     
   })
+  
+  observeEvent(input$removeOrder,{
+    row_remove <- as.numeric(trimws(gsub("_remove","",input$removeOrder[1])))
+    order_nm <- input$order_name
+    sales_rep <- input$sales_rep
+    
+    df <- qry(paste0("select * from orders
+               where Order_Name = '",order_nm,"'
+               and Sales_Rep = '",sales_rep,"'"))[-row_remove,]
+    
+    qry(paste0("delete from orders
+               where Order_Name = '",order_nm,"'
+               and Sales_Rep = '",sales_rep,"'"))
+    
+    app(df, "orders")
+    
+    orders$df <- df
+  })
+  
   observeEvent(orders$df,{
     orders_table <- orders$df
     #orders_table$row_names <- NULL
@@ -535,13 +651,15 @@ server <- function(input,output,session){
     if(nrow(orders_table) > 0 ){
     
     orders_table$Remove <- sapply(1:nrow(orders_table), function(id){
-                                    as.character(actionButton(inputId = paste0(id,"_remove"),label="",
+                                    as.character(actionButton(inputId = paste0(id,"_remove"),label="", class='remove',
                                                               icon=icon("remove", lib="glyphicon")))
                                   })
     }
     #Orders Tab
     output$orders_table <- renderTable({orders_table},sanitize.text.function = function(x) x,
                                        html.table.attributes="class='catalog'")
+    
+    session$sendCustomMessage(type="ordersTable", sample(1:10,1))
     
     #Invoice
     invoice_tab <- orders_table
@@ -651,8 +769,7 @@ server <- function(input,output,session){
                uiOutput("amt_due"))
         ),
       footer = tagList(
-        actionButton("submit_order", "Submit Order"),
-        downloadButton('downloadReport',"Download Invoice"),
+        downloadButton('downloadReport',"Submit Order"),
         modalButton("Cancel")
       )
     )
@@ -666,105 +783,6 @@ server <- function(input,output,session){
     output$amt_due <- renderUI(HTML(paste0(
       "<label class='control-label' for='amt_due'>Outstanding Balance:</label><br>",
       "$",amount_due)))
-  })
-  observeEvent(input$submit_order,{
-    
-    orders_df <- orders$df
-    time_stamp <- format(Sys.time(), tz=timezone,usetz=TRUE)
-    invoice_number <- gsub('[^0-9.]',"",time_stamp)
-    order_date <- as.Date(time_stamp, format="%Y-%m-%d")
-      
-    order_status <- sapply( orders_df$id, function(i){ input[[paste0(i,"_method")]] })
-    #print(order_status)
-    order_status <- all("Take" == order_status)
-    order_status <- ifelse(order_status, "Complete", "Outstanding")
-    
-    #write customer details
-    cash_amt <-input$cash_input
-    credit_amt <- input$credit_input
-    check_amt <- input$check_input
-    cust_name <- input$customer_name
-    address <- input$customer_add
-    phone1 <- input$customer_phone1
-    phone2 <- input$customer_phone2
-    email <- input$customer_email
-    comment <- input$customer_comment
-    total_price <- sum(orders_df$Total)
-    tax <- total_price * (tax_rt/100)
-    amount_due <- sum(orders_df$Total) * (1+(tax_rt/100))
-    amount_collected <- input$amt_collect
-    outstanding <- amount_due - amount_collected
-    sales_rep <- input$sales_rep
-    cash_coll <- input$Cash_input
-    credit_coll <- input$Credit_input
-    check_coll <- input$Check_input
-    
-    #order summary
-    order_summary <- data.frame(
-               Invoice_Number = invoice_number,
-               Sales_Rep = sales_rep,
-               Order_Date = order_date,
-               Customer = cust_name,
-               Address = address,
-               Phone1 = phone1,
-               Phone2 = phone2,
-               Email = email,
-               Comment = comment,
-               Subtotal = total_price,
-               Tax = tax,
-               Total = amount_due,
-               Amount_Collected = amount_collected,
-               Outstanding = outstanding,
-               Cash_Collected = cash_coll,
-               Credit_Collected = credit_coll,
-               Check_Collected = check_coll,
-               Order_Status = order_status)
-    
-    app(order_summary, "order_summary")
-    
-    #update inventory
-    for(i in seq(1:nrow(orders_df))){
-      inventory_num <- orders_df$Inventory_Number[i]
-      quantity <- orders_df$Quantity[i]
-      method <- input[[paste0(inventory_num,"_method")]]
-      item_name <- qry(paste0("Select Distinct Item from inventory where `Item.` = '",inventory_num,"'"))
-      cost <- qry(paste0("select distinct Unit_Cost
-                                from inventory where `Item.` = '",inventory_num,"' limit 1"))
-      total_cost <- cost * quantity
-      timestamp <- format(as.POSIXlt(Sys.time()),'%Y-%m-%d %H:%M:%S')
-        
-      # if(method == "Take"){
-      #   qry(paste0("UPDATE inventory 
-      #       SET In_Stock = In_Stock - ",quantity,"
-      #       WHERE `Item.` = '",inventory_num,"'"))
-      # }
-      
-       qry(paste0("INSERT INTO 
-                        inventory (Item, `Item.`,Total_Cost, Unit_Cost, Quantity, 
-                                    Invoice_Number, Transaction, Timestamp)
-                  VALUES ('",item_name,"','",inventory_num,"','",total_cost,"','",cost,"','-",quantity,"',
-                          '",invoice_number,"','Sale','",timestamp,"')"))
-      
-    #   qry(paste0("UPDATE inventory 
-    #       SET Available = Available - ",quantity,"
-    #       WHERE `Item.` = '",inventory_num,"'"))
-     }
-    
-    #order detail
-    orders_df$Invoice_Number <- invoice_number 
-    app(orders_df, "order_detail")
-    
-    #clear order
-    order_nm <- input$order_name
-    sales_rep <- input$sales_rep
-    
-    qry(paste0("delete from orders where Order_Name ='",order_nm,"'
-               and Sales_Rep = '",sales_rep,"'"))
-    
-    curr_orders[[sales_rep]] <<- curr_orders[[sales_rep]][curr_orders[[sales_rep]] != order_nm]
-    updateSelectInput(session,"order_name", choices=curr_orders[[sales_rep]])
-    
-    removeModal()
   })
   
   #Pmt Type Dropdown
@@ -809,7 +827,7 @@ server <- function(input,output,session){
       df <- qry("select Invoice_Number, Customer, Order_Date,
           Total,	Amount_Collected,	Outstanding,
           Sales_Rep,	Order_Status from order_summary
-          order by Order_Date DESC")
+          order by Order_Date DESC, Invoice_Number DESC")
       
       # df <- print(xtable(df), 
       #       type="html", html.table.attributes="")
@@ -822,10 +840,17 @@ server <- function(input,output,session){
   })
   
   #Inventory Tab
-  observeEvent(input$inTabset,{
+  observeEvent({input$inTabset; input$inventory_type},{
     if(input$inTabset == "panel_inventory"){
-      output$inventory_table <- renderTable({qry("select * from inventory 
-                                                 order by Timestamp DESC")},
+      
+      if(input$inventory_type){
+        z <- qry("select Item, `Item.`, sum(Total_Cost), avg(Unit_Cost), sum(Quantity)
+                 from inventory Group By Item, `Item.`")
+      } else {
+        z <- qry("select * from inventory order by Timestamp DESC")
+      }
+      
+      output$inventory_table <- renderTable({z},
                                             html.table.attributes="class='catalog'")
     }
   })
@@ -867,19 +892,14 @@ server <- function(input,output,session){
    return(z)
     
   })
-  
-  # observeEvent(input$toPDF,{
-  #   
-  #   session$sendCustomMesssage(type='toPDF', message=javascript)
-  #   
-  # })
     
   output$downloadReport <- downloadHandler(
     filename = function() {
-      paste('Invoice.pdf')
+      #invoice_number <- as.character(orders$invoice_number)
+      paste0('Invoice.pdf')
     },
-  
     content = function(file) {
+      
       src <- normalizePath('report.Rmd')
       img_src <- normalizePath('tfd.jpg')
      # params <- list(sales_rep = input$sales_rep)#,
@@ -901,6 +921,90 @@ server <- function(input,output,session){
                       # credit_coll = input$Credit_input,
                       # check_coll = input$Check_input)
       
+      orders_df <- orders$df
+      time_stamp <- format(Sys.time(), tz=timezone,usetz=TRUE)
+      invoice_number <- gsub('[^0-9.]',"",time_stamp)
+      order_date <- as.Date(time_stamp, format="%Y-%m-%d")
+
+      order_status <- sapply( orders_df$id, function(i){ input[[paste0(i,"_method")]] })
+      order_status <- all("Take" == order_status)
+      order_status <- ifelse(order_status, "Complete", "Outstanding")
+      
+      #write customer details
+      cash_amt <-input$cash_input
+      credit_amt <- input$credit_input
+      check_amt <- input$check_input
+      cust_name <- input$customer_name
+      address <- input$customer_add
+      phone1 <- input$customer_phone1
+      phone2 <- input$customer_phone2
+      email <- input$customer_email
+      comment <- input$customer_comment
+      total_price <- sum(orders_df$Total)
+      tax <- total_price * (tax_rt/100)
+      amount_due <- sum(orders_df$Total) * (1+(tax_rt/100))
+      amount_collected <- input$amt_collect
+      outstanding <- amount_due - amount_collected
+      sales_rep <- input$sales_rep
+      cash_coll <- input$Cash_input
+      credit_coll <- input$Credit_input
+      check_coll <- input$Check_input
+      
+      #order summary
+      order_summary <- data.frame(
+        Invoice_Number = invoice_number,
+        Sales_Rep = sales_rep,
+        Order_Date = order_date,
+        Customer = cust_name,
+        Address = address,
+        Phone1 = phone1,
+        Phone2 = phone2,
+        Email = email,
+        Comment = comment,
+        Subtotal = total_price,
+        Tax = tax,
+        Total = amount_due,
+        Amount_Collected = amount_collected,
+        Outstanding = outstanding,
+        Cash_Collected = cash_coll,
+        Credit_Collected = credit_coll,
+        Check_Collected = check_coll,
+        Order_Status = order_status)
+      
+      app(order_summary, "order_summary")
+      
+      #update inventory
+      for(i in seq(1:nrow(orders_df))){
+        inventory_num <- orders_df$Inventory_Number[i]
+        quantity <- orders_df$Quantity[i]
+        method <- input[[paste0(inventory_num,"_method")]]
+        item_name <- qry(paste0("Select Distinct Item from inventory where `Item.` = '",inventory_num,"'"))
+        cost <- qry(paste0("select distinct Unit_Cost
+                           from inventory where `Item.` = '",inventory_num,"' limit 1"))
+        total_cost <- cost * quantity
+        timestamp <- format(as.POSIXlt(Sys.time()),'%Y-%m-%d %H:%M:%S')
+        
+        # if(method == "Take"){
+        #   qry(paste0("UPDATE inventory 
+        #       SET In_Stock = In_Stock - ",quantity,"
+        #       WHERE `Item.` = '",inventory_num,"'"))
+        # }
+        
+        qry(paste0("INSERT INTO 
+                   inventory (Item, `Item.`,Total_Cost, Unit_Cost, Quantity, 
+                   Invoice_Number, Transaction, Timestamp)
+                   VALUES ('",item_name,"','",inventory_num,"','",total_cost,"','",cost,"','-",quantity,"',
+                   '",invoice_number,"','Sale','",timestamp,"')"))
+      
+    #   qry(paste0("UPDATE inventory 
+        #       SET Available = Available - ",quantity,"
+        #       WHERE `Item.` = '",inventory_num,"'"))
+      }
+      
+      #order detail
+      #orders_df$Invoice_Number <- invoice_number 
+      app(orders_df, "order_detail")
+      
       # temporarily switch to the temp dir, in case you do not have write
       # permission to the current working directory
       owd <- setwd(tempdir())
@@ -910,10 +1014,27 @@ server <- function(input,output,session){
       
       library(rmarkdown)
       out <- render(input = 'report.Rmd',
-                    output_format =  pdf_document()#,
+                    output_format =  pdf_document()
                    # params = params
                     
       )
+      
+      #clear order
+      order_nm <- input$order_name
+      sales_rep <- input$sales_rep
+      
+      qry(paste0("delete from orders where Order_Name ='",order_nm,"'
+               and Sales_Rep = '",sales_rep,"'"))
+      
+      curr_orders[[sales_rep]] <<- curr_orders[[sales_rep]][curr_orders[[sales_rep]] != order_nm]
+      updateSelectInput(session,"order_name", choices=curr_orders[[sales_rep]])
+      
+      removeModal()
+      
+      #invoice_number <- as.character(orders$invoice_number)
+      file.copy(out, '/srv/shiny-server/invoices', overwrite=TRUE)
+      file.rename('/srv/shiny-server/invoices/report.pdf', paste0('/srv/shiny-server/invoices/',invoice_number,'.pdf'))
+      
       file.rename(out, file)
     }
   )
