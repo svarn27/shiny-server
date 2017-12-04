@@ -3,7 +3,7 @@ library(shiny)
 library(jsonlite)
 library(dplyr)
 
-rm(list=ls())
+rm(list=ls())#
 
 options(shiny.trace=TRUE)
 set_config(config(ssl_verifypeer = 0L))
@@ -626,6 +626,8 @@ source(paste0(baseDir,"query_function.R"))
   tax_rt <- 7.5
 }
 
+##UI
+{
 ui <- fluidPage(div(id='ui', style='display:none;',
   tags$head(HTML(on_load),HTML(javascript2),
             HTML("<link href=\"https://fonts.googleapis.com/css?family=Ubuntu\" rel=\"stylesheet\">
@@ -707,6 +709,7 @@ ui <- fluidPage(div(id='ui', style='display:none;',
       column(width=3,NULL)
     )
   )
+}
 
 server <- function(input,output,session){
   
